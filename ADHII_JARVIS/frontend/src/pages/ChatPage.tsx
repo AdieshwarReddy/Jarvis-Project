@@ -11,12 +11,14 @@ import {
   MessageSquare,
   Bot,
   Zap,
+  Radio,
 } from 'lucide-react';
 import { conversationsApi } from '../api/client';
 import { useSocket } from '../context/SocketContext';
 import { ChatMessage } from '../components/ChatMessage';
 import { ChatInput } from '../components/ChatInput';
 import { ToolConfirmationCard } from '../components/ToolConfirmationCard';
+import { AmbientVoiceModal } from '../components/AmbientVoiceModal';
 
 interface Message {
   id: string;
@@ -36,6 +38,7 @@ export const ChatPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [showAmbientMode, setShowAmbientMode] = useState(false);
 
   const {
     sendChatMessage,
@@ -51,6 +54,17 @@ export const ChatPage: React.FC = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Keyboard shortcut ESC to exit ambient mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAmbientMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Load conversation details
   const loadConversation = async (convId: string) => {
@@ -98,7 +112,7 @@ export const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages, currentStreamText, pendingToolActivity]);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, voiceResponse: boolean = false) => {
     if (!conversation) return;
     // Optimistically append user message to local state
     const optimisticUserMsg: Message = {
@@ -108,7 +122,7 @@ export const ChatPage: React.FC = () => {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticUserMsg]);
-    sendChatMessage(conversation.id, text, false);
+    sendChatMessage(conversation.id, text, voiceResponse);
   };
 
   const handleRegenerate = () => {
@@ -171,6 +185,16 @@ export const ChatPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Ambient Voice HUD button */}
+          <button
+            onClick={() => setShowAmbientMode(true)}
+            className="p-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 text-cyan-300 border border-cyan-400/30 transition text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-cyan-500/10 group"
+            title="Open Jarvis Fullscreen Voice HUD"
+          >
+            <Radio className="h-3.5 w-3.5 text-cyan-400 animate-pulse group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">Voice HUD</span>
+          </button>
+
           {messages.length > 0 && !isStreaming && (
             <button
               onClick={handleRegenerate}
@@ -278,9 +302,19 @@ export const ChatPage: React.FC = () => {
       {/* Bottom Chat Input */}
       <ChatInput
         conversationId={conversation?.id}
-        onSend={handleSendMessage}
+        onSend={(text) => handleSendMessage(text, false)}
         onStop={stopGeneration}
         isStreaming={isStreaming}
+      />
+
+      {/* Ambient Voice HUD Modal */}
+      <AmbientVoiceModal
+        conversationId={conversation?.id}
+        isOpen={showAmbientMode}
+        onClose={() => setShowAmbientMode(false)}
+        onSendMessage={(text, voiceReply) => {
+          handleSendMessage(text, voiceReply ?? true);
+        }}
       />
     </div>
   );

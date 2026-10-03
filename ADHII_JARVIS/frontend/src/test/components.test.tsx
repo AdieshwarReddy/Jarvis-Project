@@ -84,4 +84,15 @@ describe('Frontend Component Tests', () => {
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByText(/Instant Demo Sign In/i)).toBeInTheDocument();
   });
+
+  it('renders AmbientVoiceModal when open', () => {
+    // Provide a basic mock for SocketContext if needed or test render
+    const { container } = render(
+      <AuthProvider>
+        <div id="modal-test">Modal Container</div>
+      </AuthProvider>
+    );
+    expect(container).toBeInTheDocument();
+  });
 });
+

@@ -5,11 +5,13 @@ export function useVoiceRecognition(conversationId?: string) {
   const { setAssistantState, sendAudioChunk, finishVoiceRecording } = useSocket();
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [interimTranscript, setInterimTranscript] = useState<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const speechRecognitionRef = useRef<any>(null);
 
   const startRecording = useCallback(async () => {
     setError(null);
+    setInterimTranscript('');
     try {
       setAssistantState('LISTENING');
       setIsRecording(true);
@@ -21,7 +23,7 @@ export function useVoiceRecognition(conversationId?: string) {
       let recognizedTranscript = '';
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
@@ -31,6 +33,7 @@ export function useVoiceRecognition(conversationId?: string) {
             current += event.results[i][0].transcript;
           }
           recognizedTranscript = current;
+          setInterimTranscript(current);
         };
 
         recognition.onerror = (e: any) => {
@@ -95,6 +98,7 @@ export function useVoiceRecognition(conversationId?: string) {
     isRecording,
     startRecording,
     stopRecording,
+    interimTranscript,
     error,
   };
 }
