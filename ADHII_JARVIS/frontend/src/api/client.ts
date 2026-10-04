@@ -40,8 +40,18 @@ export const authApi = {
     fetchApi('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   signup: (data: { email: string; password: string; display_name: string }) =>
     fetchApi('/api/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
+  googleLogin: (data?: { email?: string; name?: string }) =>
+    fetchApi('/api/auth/google', { method: 'POST', body: JSON.stringify(data || {}) }),
   getMe: () => fetchApi('/api/auth/me'),
   logout: () => fetchApi('/api/auth/logout', { method: 'POST' }),
+};
+
+export const voiceApi = {
+  synthesize: (text: string, voice?: string) =>
+    fetchApi<{ status: string; audio: string; format: string }>('/api/voice/tts', {
+      method: 'POST',
+      body: JSON.stringify({ text, voice }),
+    }),
 };
 
 export const conversationsApi = {

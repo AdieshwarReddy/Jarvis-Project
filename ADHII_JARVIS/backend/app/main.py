@@ -19,6 +19,7 @@ from app.api.tasks import router as tasks_router
 from app.api.reminders import router as reminders_router
 from app.api.tools import router as tools_router
 from app.api.settings import router as settings_router
+from app.api.voice import router as voice_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +61,7 @@ fastapi_app.include_router(tasks_router)
 fastapi_app.include_router(reminders_router)
 fastapi_app.include_router(tools_router)
 fastapi_app.include_router(settings_router)
+fastapi_app.include_router(voice_router)
 
 @fastapi_app.get("/api/health", tags=["Health"])
 async def health_check():

@@ -25,6 +25,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, displayName: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -89,6 +90,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const res = await authApi.googleLogin({ email: 'adhi.google@adhiijarvis.ai', name: 'Adhi (Google)' });
+      if (res.access_token) {
+        localStorage.setItem('jarvis_token', res.access_token);
+        setToken(res.access_token);
+        setUser(res.user);
+        await refreshProfile();
+      }
+    } catch (e) {
+      console.error('Google login error:', e);
+      throw e;
+    }
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -108,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         signup,
+        loginWithGoogle,
         logout,
         refreshProfile,
       }}

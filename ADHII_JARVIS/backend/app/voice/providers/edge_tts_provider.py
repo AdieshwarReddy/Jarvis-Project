@@ -10,7 +10,7 @@ class EdgeTTSProvider(BaseTTSProvider):
     High-fidelity neural text-to-speech using Edge-TTS.
     Operates without paid API keys, providing fast, clear speech audio.
     """
-    DEFAULT_VOICE = "en-US-GuyNeural"
+    DEFAULT_VOICE = "en-GB-RyanNeural"
 
     def __init__(self, voice: Optional[str] = None):
         super().__init__(api_key=None)

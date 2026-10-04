@@ -136,8 +136,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           audioRef.current.onended = () => {
             setAssistantState('IDLE');
           };
+          audioRef.current.onerror = () => {
+            setAssistantState('IDLE');
+          };
           audioRef.current.play().catch((err) => {
             console.warn('Audio auto-play policy restricted:', err);
+            setAssistantState('IDLE');
           });
         } catch (e) {
           console.error('Audio playback error:', e);

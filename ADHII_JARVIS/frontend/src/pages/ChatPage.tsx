@@ -39,6 +39,20 @@ export const ChatPage: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [showAmbientMode, setShowAmbientMode] = useState(false);
+  const [autoVoice, setAutoVoice] = useState<boolean>(() => localStorage.getItem('jarvis_autovoice') !== 'false');
+  const [starkTheme, setStarkTheme] = useState<'gold' | 'cyan'>(() => (localStorage.getItem('jarvis_theme') as 'gold' | 'cyan') || 'gold');
+
+  const toggleAutoVoice = () => {
+    const next = !autoVoice;
+    setAutoVoice(next);
+    localStorage.setItem('jarvis_autovoice', String(next));
+  };
+
+  const toggleStarkTheme = () => {
+    const next = starkTheme === 'gold' ? 'cyan' : 'gold';
+    setStarkTheme(next);
+    localStorage.setItem('jarvis_theme', next);
+  };
 
   const {
     sendChatMessage,
@@ -185,13 +199,31 @@ export const ChatPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Theme Selector: Stark Gold vs Cyan */}
+          <button
+            onClick={toggleStarkTheme}
+            className={`p-2 px-2.5 rounded-xl border text-xs font-mono transition-all flex items-center gap-1.5 shadow-sm ${
+              starkTheme === 'gold'
+                ? 'bg-amber-500/20 border-yellow-400/50 text-yellow-300 shadow-amber-500/10'
+                : 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
+            }`}
+            title="Switch Core Theme"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{starkTheme === 'gold' ? '🟡 Stark Gold' : '🔷 Cyan'}</span>
+          </button>
+
           {/* Ambient Voice HUD button */}
           <button
             onClick={() => setShowAmbientMode(true)}
-            className="p-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 text-cyan-300 border border-cyan-400/30 transition text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-cyan-500/10 group"
+            className={`p-2 px-3 rounded-xl border transition text-xs font-semibold flex items-center gap-1.5 shadow-lg group ${
+              starkTheme === 'gold'
+                ? 'bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 text-yellow-300 border-yellow-400/50 shadow-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30'
+                : 'bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 text-cyan-300 border-cyan-400/30 shadow-cyan-500/10 hover:from-cyan-500/30 hover:to-purple-500/30'
+            }`}
             title="Open Jarvis Fullscreen Voice HUD"
           >
-            <Radio className="h-3.5 w-3.5 text-cyan-400 animate-pulse group-hover:scale-110 transition-transform" />
+            <Radio className={`h-3.5 w-3.5 animate-pulse group-hover:scale-110 transition-transform ${starkTheme === 'gold' ? 'text-yellow-400' : 'text-cyan-400'}`} />
             <span className="hidden sm:inline">Voice HUD</span>
           </button>
 
@@ -208,7 +240,11 @@ export const ChatPage: React.FC = () => {
 
           <button
             onClick={handleNewChat}
-            className="p-2 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition text-xs font-medium flex items-center gap-1.5"
+            className={`p-2 px-3 rounded-xl border transition text-xs font-medium flex items-center gap-1.5 ${
+              starkTheme === 'gold'
+                ? 'bg-amber-500/10 hover:bg-amber-500/20 text-yellow-300 border-amber-500/30'
+                : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+            }`}
             title="Start fresh conversation"
           >
             <PlusCircle className="h-3.5 w-3.5" />
@@ -302,9 +338,12 @@ export const ChatPage: React.FC = () => {
       {/* Bottom Chat Input */}
       <ChatInput
         conversationId={conversation?.id}
-        onSend={(text) => handleSendMessage(text, false)}
+        onSend={(text) => handleSendMessage(text, autoVoice)}
         onStop={stopGeneration}
         isStreaming={isStreaming}
+        autoVoice={autoVoice}
+        onToggleAutoVoice={toggleAutoVoice}
+        starkTheme={starkTheme}
       />
 
       {/* Ambient Voice HUD Modal */}

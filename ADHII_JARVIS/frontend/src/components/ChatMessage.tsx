@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Copy, Check, Sparkles, User, Wrench } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Copy, Check, Sparkles, User, Wrench, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { voiceApi } from '../api/client';
 
 interface Props {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -17,11 +18,59 @@ export const ChatMessage: React.FC<Props> = ({
   isStreaming,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleSpeak = async () => {
+    if (isPlayingAudio && audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    if (!content.trim()) return;
+
+    try {
+      setIsLoadingAudio(true);
+      // Clean markdown code blocks for speech
+      const cleanSpeechText = content
+        .replace(/```[\s\S]*?```/g, ' [Code block omitted] ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/[*_#>-]/g, '')
+        .trim()
+        .slice(0, 600);
+
+      const res = await voiceApi.synthesize(cleanSpeechText);
+      if (res && res.audio) {
+        if (audioPlayerRef.current) {
+          audioPlayerRef.current.pause();
+        }
+        const audio = new Audio(`data:audio/mp3;base64,${res.audio}`);
+        audioPlayerRef.current = audio;
+        audio.onended = () => {
+          setIsPlayingAudio(false);
+          audioPlayerRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsPlayingAudio(false);
+          audioPlayerRef.current = null;
+        };
+        await audio.play();
+        setIsPlayingAudio(true);
+      }
+    } catch (e) {
+      console.error('TTS speech failed:', e);
+    } finally {
+      setIsLoadingAudio(false);
+    }
   };
 
   const isUser = role === 'user';
@@ -116,15 +165,36 @@ export const ChatMessage: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Copy button */}
+          {/* Assistant Action Buttons: Speak / Stop / Copy */}
           {!isUser && content && !isStreaming && (
-            <button
-              onClick={handleCopy}
-              className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 transition-all duration-200 border border-slate-700"
-              title="Copy response"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-            </button>
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-all duration-200">
+              <button
+                onClick={handleToggleSpeak}
+                disabled={isLoadingAudio}
+                className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-all ${
+                  isPlayingAudio
+                    ? 'bg-amber-500/20 border-amber-400/50 text-amber-300 animate-pulse'
+                    : 'bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 border-slate-700'
+                }`}
+                title={isPlayingAudio ? 'Stop speaking' : 'Read aloud with Jarvis voice'}
+              >
+                {isLoadingAudio ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+                ) : isPlayingAudio ? (
+                  <VolumeX className="h-3.5 w-3.5 text-amber-400" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+              </button>
+
+              <button
+                onClick={handleCopy}
+                className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition-all duration-200 border border-slate-700"
+                title="Copy response"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           )}
         </div>
       </div>

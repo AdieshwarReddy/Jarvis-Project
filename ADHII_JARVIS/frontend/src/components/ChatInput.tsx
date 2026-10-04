@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Square, Mic, MicOff, Sparkles } from 'lucide-react';
+import { Send, Square, Mic, MicOff, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
 import { VoiceWaveform } from './VoiceWaveform';
 import { useSocket } from '../context/SocketContext';
@@ -9,6 +9,9 @@ interface Props {
   onSend: (message: string) => void;
   onStop: () => void;
   isStreaming: boolean;
+  autoVoice?: boolean;
+  onToggleAutoVoice?: () => void;
+  starkTheme?: 'gold' | 'cyan';
 }
 
 export const ChatInput: React.FC<Props> = ({
@@ -16,6 +19,9 @@ export const ChatInput: React.FC<Props> = ({
   onSend,
   onStop,
   isStreaming,
+  autoVoice = true,
+  onToggleAutoVoice,
+  starkTheme = 'gold',
 }) => {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -96,6 +102,25 @@ export const ChatInput: React.FC<Props> = ({
           className="flex-1 bg-transparent border-0 text-slate-100 placeholder-slate-500 focus:ring-0 resize-none py-3 px-2 text-sm leading-relaxed max-h-36 overflow-y-auto"
         />
 
+        {/* Auto-Voice Speak Toggle */}
+        {onToggleAutoVoice && (
+          <button
+            type="button"
+            onClick={onToggleAutoVoice}
+            className={`p-3 rounded-xl transition-all duration-200 flex items-center gap-1.5 flex-shrink-0 text-xs font-mono border ${
+              autoVoice
+                ? starkTheme === 'gold'
+                  ? 'bg-amber-500/20 border-yellow-400/60 text-yellow-300 shadow-md shadow-amber-500/20 ring-1 ring-yellow-400/30'
+                  : 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-400/30'
+                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-400 border-slate-700/60'
+            }`}
+            title={autoVoice ? 'Jarvis Auto-Voice is ON (Jarvis will speak)' : 'Jarvis Auto-Voice is OFF (Text only)'}
+          >
+            {autoVoice ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            <span className="hidden sm:inline text-[11px] font-semibold">{autoVoice ? 'Voice ON' : 'Mute'}</span>
+          </button>
+        )}
+
         {/* Action button: Send or Stop */}
         {isStreaming ? (
           <button
@@ -110,7 +135,11 @@ export const ChatInput: React.FC<Props> = ({
           <button
             type="submit"
             disabled={!text.trim() || isRecording}
-            className="p-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 active:scale-95 flex-shrink-0"
+            className={`p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all duration-200 active:scale-95 flex-shrink-0 ${
+              starkTheme === 'gold'
+                ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 shadow-amber-500/30'
+                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/25'
+            }`}
             title="Send prompt"
           >
             <Send className="h-5 w-5" />
