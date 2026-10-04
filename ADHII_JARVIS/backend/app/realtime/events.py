@@ -128,7 +128,23 @@ def register_socket_events():
                 await safe_emit("assistant:stopped", {"conversation_id": conv_id}, room=sid)
             except Exception as e:
                 logger.error(f"Error in chat streaming pipeline: {e}", exc_info=True)
-                await safe_emit("assistant:error", {"error": str(e)}, room=sid)
+                err_text = "I encountered a brief rate limit from the AI model. Please wait a moment and try asking again." if "429" in str(e) else f"Error: {e}"
+                try:
+                    msg = conversations_repo.add_message(
+                        user_id=user["id"],
+                        conv_id=conv_id,
+                        role="assistant",
+                        content=err_text,
+                        message_type="text"
+                    )
+                    await safe_emit("assistant:complete", {
+                        "conversation_id": conv_id,
+                        "message_id": msg["id"],
+                        "content": err_text
+                    }, room=sid)
+                except Exception:
+                    await safe_emit("assistant:error", {"error": str(e)}, room=sid)
+
 
         task = asyncio.create_task(run_pipeline())
         socket_manager.active_tasks[sid] = task

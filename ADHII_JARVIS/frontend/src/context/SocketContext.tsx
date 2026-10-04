@@ -90,6 +90,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsStreaming(false);
       setAssistantState('ERROR');
       console.error('Assistant error:', data.error);
+      setTimeout(() => {
+        setAssistantState('IDLE');
+      }, 3500);
     });
 
     // Tool confirmation & status events

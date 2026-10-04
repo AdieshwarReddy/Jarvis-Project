@@ -1,4 +1,5 @@
 import json
+import asyncio
 import httpx
 from typing import List, Dict, Any, AsyncGenerator, Optional
 from app.ai.providers.base import BaseLLMProvider
@@ -7,10 +8,10 @@ from app.core.exceptions import ProviderError
 
 class GroqProvider(BaseLLMProvider):
     """
-    Groq Cloud API provider adapter.
-    Default model: llama-3.3-70b-versatile or llama-3.1-8b-instant.
+    Groq Cloud API provider adapter with automatic rate limit backoff.
+    Default models: qwen/qwen3.8-27b, openai/gpt-oss-120b, llama-3.3-70b-versatile.
     """
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
     BASE_URL = "https://api.groq.com/openai/v1/chat/completions"
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -31,21 +32,32 @@ class GroqProvider(BaseLLMProvider):
             "stream": False
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(self.BASE_URL, headers=headers, json=payload)
-                if resp.status_code != 200:
-                    logger.error(f"Groq API error: {resp.status_code} - {resp.text}")
-                    raise ProviderError(f"Groq API returned error {resp.status_code}")
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-        except httpx.RequestError as e:
-            logger.error(f"Groq request network error: {e}")
-            raise ProviderError(f"Groq connection failure: {e}")
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(self.BASE_URL, headers=headers, json=payload)
+                    if resp.status_code == 429:
+                        if attempt == 0:
+                            logger.warning("Groq rate limit 429, retrying in 2 seconds...")
+                            await asyncio.sleep(2.0)
+                            continue
+                        return "I am currently processing a high volume of requests. Please try your question again in a moment."
+                    if resp.status_code != 200:
+                        logger.error(f"Groq API error: {resp.status_code} - {resp.text}")
+                        return "I encountered an issue processing your request with the AI model. Please try again."
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"]
+            except httpx.RequestError as e:
+                logger.error(f"Groq request network error: {e}")
+                if attempt == 1:
+                    return "Network connection to AI provider failed. Please check your internet connection."
+                await asyncio.sleep(1.0)
+        return "Service temporarily busy. Please try again."
 
     async def stream(self, messages: List[Dict[str, str]], temperature: float = 0.7, **kwargs) -> AsyncGenerator[str, None]:
         if not self.api_key:
-            raise ProviderError("Groq API key is not configured")
+            yield "Groq API key is not configured. Please check your backend/.env file."
+            return
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -58,31 +70,46 @@ class GroqProvider(BaseLLMProvider):
             "stream": True
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                async with client.stream("POST", self.BASE_URL, headers=headers, json=payload) as resp:
-                    if resp.status_code != 200:
-                        err_body = await resp.aread()
-                        logger.error(f"Groq stream error: {resp.status_code} - {err_body.decode()}")
-                        raise ProviderError(f"Groq stream error {resp.status_code}")
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    async with client.stream("POST", self.BASE_URL, headers=headers, json=payload) as resp:
+                        if resp.status_code == 429:
+                            if attempt == 0:
+                                logger.warning("Groq stream rate limit 429, retrying in 2 seconds...")
+                                await asyncio.sleep(2.0)
+                                continue
+                            err_body = await resp.aread()
+                            logger.error(f"Groq stream rate limit: {resp.status_code} - {err_body.decode()}")
+                            yield "I am currently receiving a high volume of requests. Please try asking again in a few moments."
+                            return
+                        elif resp.status_code != 200:
+                            err_body = await resp.aread()
+                            logger.error(f"Groq stream error: {resp.status_code} - {err_body.decode()}")
+                            yield "I encountered an error connecting to the AI model. Please try again."
+                            return
 
-                    async for line in resp.aiter_lines():
-                        if not line or not line.startswith("data: "):
-                            continue
-                        data_str = line[6:].strip()
-                        if data_str == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(data_str)
-                            delta = chunk["choices"][0].get("delta", {})
-                            content = delta.get("content")
-                            if content:
-                                yield content
-                        except json.JSONDecodeError:
-                            continue
-        except httpx.RequestError as e:
-            logger.error(f"Groq stream connection error: {e}")
-            raise ProviderError(f"Groq stream failed: {e}")
+                        async for line in resp.aiter_lines():
+                            if not line or not line.startswith("data: "):
+                                continue
+                            data_str = line[6:].strip()
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data_str)
+                                delta = chunk["choices"][0].get("delta", {})
+                                content = delta.get("content")
+                                if content:
+                                    yield content
+                            except json.JSONDecodeError:
+                                continue
+                        return
+            except httpx.RequestError as e:
+                logger.error(f"Groq stream connection error: {e}")
+                if attempt == 1:
+                    yield "Network connection error while streaming response. Please try again."
+                    return
+                await asyncio.sleep(1.0)
 
     def supports_tools(self) -> bool:
         return True
