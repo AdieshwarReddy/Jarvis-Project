@@ -12,6 +12,12 @@ interface ToolActivityData {
   message?: any;
 }
 
+export interface CompletedMessage {
+  conversation_id: string;
+  message_id: string;
+  content: string;
+}
+
 interface SocketContextType {
   socket: Socket | null;
   connected: boolean;
@@ -22,6 +28,7 @@ interface SocketContextType {
   pendingToolActivity: ToolActivityData | null;
   setPendingToolActivity: (act: ToolActivityData | null) => void;
   voiceTranscript: string;
+  lastCompletedMessage: CompletedMessage | null;
   sendChatMessage: (conversationId: string, message: string, voiceResponse?: boolean) => void;
   stopGeneration: () => void;
   confirmTool: (toolActivityId: string, conversationId: string, confirmed: boolean) => void;
@@ -40,6 +47,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [pendingToolActivity, setPendingToolActivity] = useState<ToolActivityData | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
+  const [lastCompletedMessage, setLastCompletedMessage] = useState<CompletedMessage | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -77,9 +85,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAssistantState('SPEAKING');
     });
 
-    s.on('assistant:complete', () => {
+    s.on('assistant:complete', (data: CompletedMessage) => {
       setIsStreaming(false);
       setAssistantState('IDLE');
+      if (data && data.content) {
+        setLastCompletedMessage(data);
+      }
     });
 
     s.on('assistant:stopped', () => {
@@ -217,6 +228,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         pendingToolActivity,
         setPendingToolActivity,
         voiceTranscript,
+        lastCompletedMessage,
         sendChatMessage,
         stopGeneration,
         confirmTool,

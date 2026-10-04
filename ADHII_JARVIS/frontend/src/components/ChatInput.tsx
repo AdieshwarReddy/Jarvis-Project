@@ -12,6 +12,7 @@ interface Props {
   autoVoice?: boolean;
   onToggleAutoVoice?: () => void;
   starkTheme?: 'gold' | 'cyan';
+  onOpenVoiceHud?: () => void;
 }
 
 export const ChatInput: React.FC<Props> = ({
@@ -22,6 +23,7 @@ export const ChatInput: React.FC<Props> = ({
   autoVoice = true,
   onToggleAutoVoice,
   starkTheme = 'gold',
+  onOpenVoiceHud,
 }) => {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -75,7 +77,7 @@ export const ChatInput: React.FC<Props> = ({
         {/* Push-to-talk voice button */}
         <button
           type="button"
-          onClick={toggleVoice}
+          onClick={onOpenVoiceHud || toggleVoice}
           className={`p-3 rounded-xl transition-all duration-300 flex-shrink-0 ${
             isRecording
               ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40 ring-4 ring-rose-500/30'

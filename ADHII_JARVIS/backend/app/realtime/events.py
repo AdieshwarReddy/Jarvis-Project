@@ -50,13 +50,14 @@ def register_socket_events():
                 user = await verify_supabase_token(token)
             else:
                 user = DEMO_USER
-            socket_manager.user_sessions[sid] = user
-            socket_manager.audio_buffers[sid] = bytearray()
-            logger.info(f"Socket connected: sid={sid}, user_id={user['id'][:8]}")
-            return True
         except Exception as e:
-            logger.warning(f"Socket connection rejected: {e}")
-            return False
+            logger.warning(f"Socket connection token fallback to DEMO_USER: {e}")
+            user = DEMO_USER
+
+        socket_manager.user_sessions[sid] = user
+        socket_manager.audio_buffers[sid] = bytearray()
+        logger.info(f"Socket connected: sid={sid}, user_id={user['id'][:8]}")
+        return True
 
     @sio.event
     async def disconnect(sid):

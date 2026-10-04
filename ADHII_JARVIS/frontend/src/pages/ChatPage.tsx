@@ -61,6 +61,7 @@ export const ChatPage: React.FC = () => {
     currentStreamText,
     pendingToolActivity,
     confirmTool,
+    lastCompletedMessage,
   } = useSocket();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -79,6 +80,29 @@ export const ChatPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Permanently store completed assistant message in message thread
+  useEffect(() => {
+    if (lastCompletedMessage && lastCompletedMessage.content) {
+      setMessages((prev) => {
+        const alreadyExists = prev.some(
+          (m) =>
+            m.id === lastCompletedMessage.message_id ||
+            (m.role === 'assistant' && m.content === lastCompletedMessage.content)
+        );
+        if (alreadyExists) return prev;
+        return [
+          ...prev,
+          {
+            id: lastCompletedMessage.message_id || `asst-${Date.now()}`,
+            role: 'assistant',
+            content: lastCompletedMessage.content,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
+    }
+  }, [lastCompletedMessage]);
 
   // Load conversation details
   const loadConversation = async (convId: string) => {
@@ -132,7 +156,8 @@ export const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages, currentStreamText, pendingToolActivity]);
 
-  const handleSendMessage = async (text: string, voiceResponse: boolean = false) => {
+  const handleSendMessage = async (text: string, voiceResponse?: boolean) => {
+    const shouldVoice = voiceResponse !== undefined ? voiceResponse : autoVoice;
     let targetConvId = conversation?.id || activeConvId;
     if (!targetConvId) {
       try {
@@ -155,7 +180,7 @@ export const ChatPage: React.FC = () => {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticUserMsg]);
-    sendChatMessage(targetConvId, text, voiceResponse);
+    sendChatMessage(targetConvId, text, shouldVoice);
   };
 
   const handleRegenerate = () => {
@@ -316,11 +341,11 @@ export const ChatPage: React.FC = () => {
               />
             ))}
 
-            {/* Current Stream Message */}
-            {isStreaming && currentStreamText && (
+            {/* Current Stream Message or immediate processing state */}
+            {isStreaming && (
               <ChatMessage
                 role="assistant"
-                content={currentStreamText}
+                content={currentStreamText || 'Processing your request...'}
                 isStreaming={true}
               />
             )}
@@ -364,6 +389,7 @@ export const ChatPage: React.FC = () => {
         autoVoice={autoVoice}
         onToggleAutoVoice={toggleAutoVoice}
         starkTheme={starkTheme}
+        onOpenVoiceHud={() => setShowAmbientMode(true)}
       />
 
       {/* Ambient Voice HUD Modal */}

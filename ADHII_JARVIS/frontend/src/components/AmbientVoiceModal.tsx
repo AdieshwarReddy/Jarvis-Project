@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Mic,
   MicOff,
@@ -12,6 +13,8 @@ import {
   ShieldCheck,
   Radio,
   Flame,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { useSocket, AssistantState } from '../context/SocketContext';
 import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
@@ -36,12 +39,30 @@ export const AmbientVoiceModal: React.FC<Props> = ({
     isStreaming,
     voiceTranscript,
     stopGeneration,
+    lastCompletedMessage,
   } = useSocket();
 
   const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
+  const [lastReply, setLastReply] = useState<string>('');
+  const [lastUserPrompt, setLastUserPrompt] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [starkTheme, setStarkTheme] = useState<'gold' | 'cyan'>(() => {
     return (localStorage.getItem('jarvis_theme') as 'gold' | 'cyan') || 'gold';
   });
+
+  const toggleBrowserFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    if (lastCompletedMessage?.content) {
+      setLastReply(lastCompletedMessage.content);
+    }
+  }, [lastCompletedMessage]);
 
   const { isRecording, startRecording, stopRecording, interimTranscript } =
     useVoiceRecognition(conversationId);
@@ -63,6 +84,8 @@ export const AmbientVoiceModal: React.FC<Props> = ({
   };
 
   const handleQuickCommand = (cmd: string) => {
+    setLastUserPrompt(cmd);
+    setLastReply('');
     onSendMessage(cmd, voiceReplyEnabled);
   };
 
@@ -84,8 +107,8 @@ export const AmbientVoiceModal: React.FC<Props> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-slate-950/95 backdrop-blur-2xl text-slate-100 overflow-hidden animate-in fade-in duration-300">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] w-screen h-screen flex flex-col items-center justify-between bg-slate-950/98 backdrop-blur-3xl text-slate-100 overflow-hidden animate-in fade-in duration-300">
       {/* Background Holographic Glows */}
       <div className="absolute inset-0 pointer-events-none">
         {starkTheme === 'gold' ? (
@@ -184,20 +207,29 @@ export const AmbientVoiceModal: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="p-2.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 transition shadow-lg"
-          title="Return to Workspace (ESC)"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {/* Fullscreen & Close button */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleBrowserFullscreen}
+            className="p-2.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 transition shadow-lg hidden sm:flex"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Hardware Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 transition shadow-lg"
+            title="Return to Workspace (ESC)"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Central Holographic Core Reactor */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-4 text-center my-2">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-4xl px-4 text-center my-1">
         {/* Pulsing concentric rings with Stark HUD reticle marks */}
-        <div className="relative flex items-center justify-center w-80 h-80 sm:w-96 sm:h-96">
+        <div className="relative flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72">
           {/* Target Reticle Crosshair lines */}
           <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] ${starkTheme === 'gold' ? 'bg-gradient-to-r from-transparent via-amber-400/40 to-transparent' : 'bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent'}`} />
           <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] ${starkTheme === 'gold' ? 'bg-gradient-to-b from-transparent via-amber-400/40 to-transparent' : 'bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent'}`} />
@@ -263,7 +295,7 @@ export const AmbientVoiceModal: React.FC<Props> = ({
           {/* Reactor Inner Glow Core Button */}
           <button
             onClick={handleToggleVoice}
-            className={`group relative z-10 w-48 h-48 sm:w-56 sm:h-56 rounded-full flex flex-col items-center justify-center transition-all duration-500 shadow-2xl focus:outline-none ${
+            className={`group relative z-10 w-40 h-40 sm:w-48 sm:h-48 rounded-full flex flex-col items-center justify-center transition-all duration-500 shadow-2xl focus:outline-none ${
               isRecording
                 ? 'bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-500 shadow-rose-500/60 ring-8 ring-rose-500/30 scale-105'
                 : assistantState === 'THINKING' || assistantState === 'PROCESSING'
@@ -341,21 +373,28 @@ export const AmbientVoiceModal: React.FC<Props> = ({
               : 'bg-slate-900/60 border-slate-800'
           }`}
         >
-          {/* User's spoken words */}
-          {(interimTranscript || voiceTranscript) && (
+          {/* User's spoken words or clicked command */}
+          {(interimTranscript || voiceTranscript || lastUserPrompt) && (
             <p className={`text-xs font-mono mb-1 ${starkTheme === 'gold' ? 'text-yellow-300' : 'text-cyan-300'}`}>
               <span className="text-slate-400">YOU: </span>
-              "{interimTranscript || voiceTranscript}"
+              "{interimTranscript || voiceTranscript || lastUserPrompt}"
             </p>
           )}
 
           {/* Assistant Streamed response */}
-          {currentStreamText ? (
+          {(currentStreamText || lastReply) ? (
             <p className="text-sm font-sans text-slate-100 leading-relaxed font-medium">
               <span className={`font-mono text-xs ${starkTheme === 'gold' ? 'text-yellow-400 font-bold' : 'text-cyan-400'}`}>
                 JARVIS:
               </span>{' '}
-              {currentStreamText}
+              {currentStreamText || lastReply}
+            </p>
+          ) : isStreaming ? (
+            <p className="text-sm font-sans text-slate-300 leading-relaxed font-medium animate-pulse">
+              <span className={`font-mono text-xs ${starkTheme === 'gold' ? 'text-yellow-400 font-bold' : 'text-cyan-400'}`}>
+                JARVIS:
+              </span>{' '}
+              Synthesizing response...
             </p>
           ) : !interimTranscript && !voiceTranscript ? (
             <p className="text-xs text-slate-400 font-mono italic">
@@ -390,6 +429,7 @@ export const AmbientVoiceModal: React.FC<Props> = ({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
