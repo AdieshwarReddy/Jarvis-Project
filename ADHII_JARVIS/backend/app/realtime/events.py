@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import uuid
+from datetime import datetime, date
 from typing import Dict, Any
 from app.realtime.socket_manager import socket_manager, sio
 from app.core.security import verify_supabase_token, DEMO_USER
@@ -9,6 +11,24 @@ from app.voice.stt_service import get_stt_provider
 from app.voice.tts_service import get_tts_provider
 from app.database.repositories.conversations_repo import conversations_repo
 from app.database.repositories.tool_activity_repo import tool_activity_repo
+
+def serialize_for_socket(obj: Any) -> Any:
+    """Recursively convert datetime and UUID objects to JSON-serializable types."""
+    if isinstance(obj, dict):
+        return {k: serialize_for_socket(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_for_socket(i) for i in obj]
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif isinstance(obj, uuid.UUID):
+        return str(obj)
+    return obj
+
+async def safe_emit(event: str, data: Any = None, room: str = None):
+    """Safely emit an event over Socket.IO with guaranteed JSON serialization."""
+    serialized = serialize_for_socket(data) if data is not None else None
+    await sio.emit(event, serialized, room=room)
+
 
 def register_socket_events():
     """Register all Socket.IO client and server lifecycle event listeners."""
@@ -57,7 +77,7 @@ def register_socket_events():
     async def handle_chat_send(sid, data):
         user = await socket_manager.get_user_from_sid(sid)
         if not user:
-            await sio.emit("assistant:error", {"error": "Unauthorized socket session"}, room=sid)
+            await safe_emit("assistant:error", {"error": "Unauthorized socket session"}, room=sid)
             return
 
         conv_id = data.get("conversation_id")
@@ -85,7 +105,7 @@ def register_socket_events():
                 ):
                     event_name = item["event"]
                     event_data = item["data"]
-                    await sio.emit(event_name, event_data, room=sid)
+                    await safe_emit(event_name, event_data, room=sid)
 
                     if event_name == "assistant:token":
                         accumulated_response += event_data.get("token", "")
@@ -93,22 +113,22 @@ def register_socket_events():
                 # If voice mode enabled and text was generated, trigger TTS
                 if voice_mode and accumulated_response.strip():
                     try:
-                        await sio.emit("tts:start", {"conversation_id": conv_id}, room=sid)
+                        await safe_emit("tts:start", {"conversation_id": conv_id}, room=sid)
                         tts = get_tts_provider()
                         audio_bytes = await tts.synthesize(accumulated_response[:600])
                         b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-                        await sio.emit("tts:audio", {"audio": b64_audio, "format": "mp3"}, room=sid)
-                        await sio.emit("tts:end", {"conversation_id": conv_id}, room=sid)
+                        await safe_emit("tts:audio", {"audio": b64_audio, "format": "mp3"}, room=sid)
+                        await safe_emit("tts:end", {"conversation_id": conv_id}, room=sid)
                     except Exception as tts_err:
                         logger.warning(f"TTS synthesis error: {tts_err}")
-                        await sio.emit("tts:end", {"error": str(tts_err)}, room=sid)
+                        await safe_emit("tts:end", {"error": str(tts_err)}, room=sid)
 
             except asyncio.CancelledError:
                 logger.info(f"Stream cancelled by client: sid={sid}")
-                await sio.emit("assistant:stopped", {"conversation_id": conv_id}, room=sid)
+                await safe_emit("assistant:stopped", {"conversation_id": conv_id}, room=sid)
             except Exception as e:
                 logger.error(f"Error in chat streaming pipeline: {e}", exc_info=True)
-                await sio.emit("assistant:error", {"error": str(e)}, room=sid)
+                await safe_emit("assistant:error", {"error": str(e)}, room=sid)
 
         task = asyncio.create_task(run_pipeline())
         socket_manager.active_tasks[sid] = task
@@ -116,7 +136,7 @@ def register_socket_events():
     @sio.on("chat:stop")
     async def on_chat_stop(sid, data=None):
         socket_manager.cancel_task(sid)
-        await sio.emit("assistant:stopped", {"status": "stopped"}, room=sid)
+        await safe_emit("assistant:stopped", {"status": "stopped"}, room=sid)
 
     @sio.on("voice:start")
     async def on_voice_start(sid, data=None):
@@ -152,11 +172,11 @@ def register_socket_events():
                 transcript = await stt.transcribe(audio_bytes)
             except Exception as e:
                 logger.warning(f"Voice STT failed: {e}")
-                await sio.emit("assistant:error", {"error": f"Speech transcription failed: {e}"}, room=sid)
+                await safe_emit("assistant:error", {"error": f"Speech transcription failed: {e}"}, room=sid)
                 return
 
         if transcript:
-            await sio.emit("voice:transcript", {"transcript": transcript}, room=sid)
+            await safe_emit("voice:transcript", {"transcript": transcript}, room=sid)
             # Automatically feed into chat pipeline with voice response enabled
             conv_id = (data or {}).get("conversation_id")
             await handle_chat_send(sid, {
@@ -181,7 +201,7 @@ def register_socket_events():
         if confirmed:
             try:
                 result = await orchestrator.execute_confirmed_tool(user_id=user["id"], tool_activity_id=tool_act_id)
-                await sio.emit("tool:completed", {
+                await safe_emit("tool:completed", {
                     "tool_activity_id": tool_act_id,
                     "result": result
                 }, room=sid)
@@ -195,14 +215,14 @@ def register_socket_events():
                     content=success_text,
                     message_type="tool_result"
                 )
-                await sio.emit("assistant:complete", {
+                await safe_emit("assistant:complete", {
                     "conversation_id": conv_id,
                     "message_id": msg["id"],
                     "content": success_text
                 }, room=sid)
 
             except Exception as e:
-                await sio.emit("tool:error", {"tool_activity_id": tool_act_id, "error": str(e)}, room=sid)
+                await safe_emit("tool:error", {"tool_activity_id": tool_act_id, "error": str(e)}, room=sid)
         else:
             tool_activity_repo.update(user["id"], tool_act_id, status="rejected")
             cancel_text = "Action was cancelled. No changes were made."
@@ -214,7 +234,7 @@ def register_socket_events():
                     content=cancel_text,
                     message_type="text"
                 )
-                await sio.emit("assistant:complete", {
+                await safe_emit("assistant:complete", {
                     "conversation_id": conv_id,
                     "message_id": msg["id"],
                     "content": cancel_text
