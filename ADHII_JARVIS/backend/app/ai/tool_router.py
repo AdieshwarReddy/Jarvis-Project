@@ -157,6 +157,22 @@ class ToolRouter:
                 "requires_confirmation": False
             }
 
+        # -------------------------------------------------------------
+        # 9. OPEN APPLICATION TOOL (Immediate execution)
+        # -------------------------------------------------------------
+        # e.g., "open vs code", "open whatsapp", "open chrome", "launch notepad", "start calculator"
+        app_match = re.search(r'^(?:please\s+|can you\s+|could you\s+)?(?:open|launch|start|run)(?:\s+up)?\s+(?:the\s+)?([a-zA-Z0-9_\-\.\s]+?)(?:\s+app|\s+application)?(?:\s+please)?$', text, re.I)
+        if app_match:
+            raw_target = app_match.group(1).strip()
+            # Exclude other tools keywords
+            if not any(kw in raw_target.lower() for kw in ["note", "task", "reminder", "document", "chat", "conversation"]):
+                return {
+                    "tool_name": "open_app",
+                    "parameters": {"app_name": raw_target},
+                    "summary": f"Launch {raw_target}",
+                    "requires_confirmation": False
+                }
+
         return None
 
 tool_router = ToolRouter()

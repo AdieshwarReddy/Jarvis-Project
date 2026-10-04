@@ -80,12 +80,6 @@ def clean_text_for_jarvis_speech(raw_text: str) -> str:
             break
 
     spoken = " ".join(spoken_chunks) if spoken_chunks else text[:260]
-
-    # Ensure authentic J.A.R.V.I.S. address ("Yes boss, ...") if not already present
-    lower_spoken = spoken.lower()
-    if not any(k in lower_spoken for k in ["boss", "sir"]) and len(spoken) > 3:
-        spoken = f"Yes boss, {spoken}"
-
     return spoken
 
 

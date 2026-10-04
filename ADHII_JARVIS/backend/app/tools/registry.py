@@ -8,6 +8,7 @@ from app.tools.search import web_search
 from app.tools.notes_tool import execute_create_note, execute_search_notes
 from app.tools.tasks_tool import execute_create_task, execute_list_tasks, execute_complete_task
 from app.tools.reminders_tool import execute_create_reminder, execute_list_reminders
+from app.tools.app_launcher import execute_open_app
 from app.database.repositories.documents_repo import documents_repo
 
 class ToolDefinition:
@@ -210,6 +211,21 @@ class ToolRegistry:
             },
             handler=execute_create_reminder,
             requires_confirmation=True
+        ))
+
+        # 11. Open App Tool (Immediate execution / Read-only action)
+        self.register(ToolDefinition(
+            name="open_app",
+            description="Launch or open a desktop application on Windows (e.g. VS Code, WhatsApp, Chrome, Notepad, Spotify, Calculator).",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "app_name": {"type": "string", "description": "Name of the application to launch (e.g. 'vs code', 'whatsapp', 'chrome')"}
+                },
+                "required": ["app_name"]
+            },
+            handler=lambda app_name: execute_open_app(app_name),
+            requires_confirmation=False
         ))
 
 # Global tool registry

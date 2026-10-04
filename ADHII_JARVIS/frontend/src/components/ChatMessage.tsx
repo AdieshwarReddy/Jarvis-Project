@@ -158,7 +158,7 @@ export const ChatMessage: React.FC<Props> = ({
             </div>
           )}
 
-          <div className="prose prose-invert max-w-none text-sm break-words">
+          <div className={`prose prose-invert max-w-none text-sm break-words ${!isUser && content ? 'pr-16' : ''}`}>
             {renderFormattedContent(content)}
             {isStreaming && (
               <span className="inline-block w-2 h-4 ml-1.5 bg-cyan-400 animate-pulse rounded-sm align-middle" />
