@@ -87,8 +87,15 @@ def register_socket_events():
         if not user_msg:
             return
 
-        # Ensure conversation exists or create one
-        if not conv_id:
+        # Ensure conversation exists and belongs to this user; if not, create one
+        valid_conv = None
+        if conv_id:
+            try:
+                valid_conv = conversations_repo.get(user["id"], conv_id)
+            except Exception:
+                valid_conv = None
+
+        if not valid_conv:
             new_conv = conversations_repo.create(user["id"], title="New Conversation")
             conv_id = new_conv["id"]
 

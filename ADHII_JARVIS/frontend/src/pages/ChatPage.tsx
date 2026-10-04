@@ -90,6 +90,7 @@ export const ChatPage: React.FC = () => {
       setNewTitle(data.title || 'Conversation');
     } catch (err) {
       console.error('Failed to load conversation:', err);
+      setConversation({ id: convId, title: 'Active Conversation', messages: [] });
     } finally {
       setLoading(false);
     }
@@ -104,6 +105,9 @@ export const ChatPage: React.FC = () => {
       setMessages([]);
     } catch (err) {
       console.error('Failed to create new chat:', err);
+      const fallbackConv = { id: `conv-${Date.now()}`, title: 'New Conversation', messages: [] };
+      setConversation(fallbackConv);
+      setMessages([]);
     }
   };
 
@@ -118,6 +122,8 @@ export const ChatPage: React.FC = () => {
         } else {
           handleNewChat();
         }
+      }).catch(() => {
+        handleNewChat();
       });
     }
   }, [activeConvId]);
@@ -126,8 +132,21 @@ export const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages, currentStreamText, pendingToolActivity]);
 
-  const handleSendMessage = (text: string, voiceResponse: boolean = false) => {
-    if (!conversation) return;
+  const handleSendMessage = async (text: string, voiceResponse: boolean = false) => {
+    let targetConvId = conversation?.id || activeConvId;
+    if (!targetConvId) {
+      try {
+        const newConv = await conversationsApi.create('New Conversation');
+        setConversation(newConv);
+        targetConvId = newConv.id;
+        setSearchParams({ id: newConv.id });
+      } catch (err) {
+        console.warn('Fallback conversation ID used:', err);
+        targetConvId = `conv-${Date.now()}`;
+        setConversation({ id: targetConvId, title: 'New Conversation', messages: [] });
+      }
+    }
+
     // Optimistically append user message to local state
     const optimisticUserMsg: Message = {
       id: `opt-${Date.now()}`,
@@ -136,13 +155,14 @@ export const ChatPage: React.FC = () => {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticUserMsg]);
-    sendChatMessage(conversation.id, text, voiceResponse);
+    sendChatMessage(targetConvId, text, voiceResponse);
   };
 
   const handleRegenerate = () => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-    if (lastUserMsg && conversation) {
-      sendChatMessage(conversation.id, lastUserMsg.content, false);
+    if (lastUserMsg) {
+      const targetConvId = conversation?.id || activeConvId || `conv-${Date.now()}`;
+      sendChatMessage(targetConvId, lastUserMsg.content, autoVoice);
     }
   };
 

@@ -26,14 +26,32 @@ export const RemindersPage: React.FC = () => {
     fetchReminders();
   }, []);
 
+  const openCreateModal = () => {
+    const d = new Date(Date.now() + 3600000);
+    d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15, 0, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const defaultVal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setReminderAt(defaultVal);
+    setTitle('');
+    setShowModal(true);
+  };
+
   const handleCreateReminder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !reminderAt) return;
 
     try {
+      // Ensure complete ISO date even if browser truncated time
+      let dateString = reminderAt;
+      if (!dateString.includes('T')) {
+        dateString += 'T09:00';
+      }
+      const parsed = new Date(dateString);
+      const iso = isNaN(parsed.getTime()) ? new Date(Date.now() + 3600000).toISOString() : parsed.toISOString();
+
       await remindersApi.create({
         title: title.trim(),
-        reminder_at: new Date(reminderAt).toISOString(),
+        reminder_at: iso,
       });
       setShowModal(false);
       setTitle('');
@@ -69,7 +87,7 @@ export const RemindersPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openCreateModal}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 text-white font-medium text-xs shadow-lg shadow-rose-500/20 active:scale-95 transition"
         >
           <Plus className="h-4 w-4" />

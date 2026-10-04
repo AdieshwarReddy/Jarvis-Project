@@ -43,7 +43,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8000';
+    const defaultHost = typeof window !== 'undefined' && window.location ? window.location.hostname || '127.0.0.1' : '127.0.0.1';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || `http://${defaultHost}:8000`;
     const s = io(socketUrl, {
       auth: { token: token || 'demo-token' },
       query: { token: token || 'demo-token' },

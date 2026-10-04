@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const DEFAULT_HOST = typeof window !== 'undefined' && window.location ? window.location.hostname || '127.0.0.1' : '127.0.0.1';
+const BASE_URL = import.meta.env.VITE_API_URL || `http://${DEFAULT_HOST}:8000`;
 
 export async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jarvis_token') || 'demo-token';
