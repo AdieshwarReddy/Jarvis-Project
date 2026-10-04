@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Menu, X, User } from 'lucide-react';
+import { Sparkles, Menu, X, User, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { AssistantStateIndicator } from './AssistantStateIndicator';
@@ -13,7 +13,7 @@ interface Props {
 
 export const Navbar: React.FC<Props> = ({ onToggleSidebar, sidebarOpen }) => {
   const { user, profile } = useAuth();
-  const { assistantState } = useSocket();
+  const { assistantState, openVoiceHud } = useSocket();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-cyan-500/10 bg-jarvis-bg/80 backdrop-blur-xl">
@@ -46,14 +46,29 @@ export const Navbar: React.FC<Props> = ({ onToggleSidebar, sidebarOpen }) => {
           </Link>
         </div>
 
-        {/* Center: Live Assistant State Indicator */}
-        <div className="hidden md:flex items-center">
+        {/* Center: Live Assistant State Indicator & Fullscreen Jarvis Trigger */}
+        <div className="hidden md:flex items-center gap-3">
           <AssistantStateIndicator state={assistantState} size="md" />
+          <button
+            onClick={openVoiceHud}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/25 transition-all duration-200 active:scale-95 border border-yellow-300 group"
+            title="Spread Fullscreen Stark Arc Core Jarvis"
+          >
+            <Flame className="h-4 w-4 fill-current text-slate-950 group-hover:scale-110 transition-transform" />
+            <span className="tracking-wider uppercase font-mono">⚡ ACTIVATE JARVIS</span>
+          </button>
         </div>
 
         {/* Right: Notification bell & User Profile */}
         <div className="flex items-center gap-3">
-          <div className="md:hidden">
+          <button
+            onClick={openVoiceHud}
+            className="md:hidden p-2 rounded-xl bg-amber-500 text-slate-950 font-bold border border-yellow-300 shadow-md shadow-amber-500/30"
+            title="Activate Fullscreen Jarvis"
+          >
+            <Flame className="h-4 w-4 fill-current" />
+          </button>
+          <div className="hidden sm:block md:hidden">
             <AssistantStateIndicator state={assistantState} size="sm" />
           </div>
 

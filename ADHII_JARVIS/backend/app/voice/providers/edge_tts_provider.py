@@ -19,7 +19,7 @@ class EdgeTTSProvider(BaseTTSProvider):
     async def synthesize(self, text: str, voice: Optional[str] = None) -> bytes:
         selected_voice = voice or self.default_voice
         try:
-            communicate = edge_tts.Communicate(text, selected_voice)
+            communicate = edge_tts.Communicate(text, selected_voice, pitch="-2Hz", rate="+1%")
             buffer = io.BytesIO()
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":

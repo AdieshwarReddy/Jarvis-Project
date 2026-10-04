@@ -29,6 +29,11 @@ interface SocketContextType {
   setPendingToolActivity: (act: ToolActivityData | null) => void;
   voiceTranscript: string;
   lastCompletedMessage: CompletedMessage | null;
+  isVoiceHudOpen: boolean;
+  openVoiceHud: () => void;
+  closeVoiceHud: () => void;
+  activeConversationId: string;
+  setActiveConversationId: (id: string) => void;
   sendChatMessage: (conversationId: string, message: string, voiceResponse?: boolean) => void;
   stopGeneration: () => void;
   confirmTool: (toolActivityId: string, conversationId: string, confirmed: boolean) => void;
@@ -48,7 +53,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [pendingToolActivity, setPendingToolActivity] = useState<ToolActivityData | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
   const [lastCompletedMessage, setLastCompletedMessage] = useState<CompletedMessage | null>(null);
+  const [isVoiceHudOpen, setIsVoiceHudOpen] = useState<boolean>(false);
+  const [activeConversationId, setActiveConversationId] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const openVoiceHud = () => {
+    setIsVoiceHudOpen(true);
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
+  const closeVoiceHud = () => {
+    setIsVoiceHudOpen(false);
+  };
 
   useEffect(() => {
     const defaultHost = typeof window !== 'undefined' && window.location ? window.location.hostname || '127.0.0.1' : '127.0.0.1';
@@ -229,6 +247,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setPendingToolActivity,
         voiceTranscript,
         lastCompletedMessage,
+        isVoiceHudOpen,
+        openVoiceHud,
+        closeVoiceHud,
+        activeConversationId,
+        setActiveConversationId,
         sendChatMessage,
         stopGeneration,
         confirmTool,

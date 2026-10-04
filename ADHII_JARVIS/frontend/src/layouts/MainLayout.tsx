@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
+import { AmbientVoiceModal } from '../components/AmbientVoiceModal';
+import { useSocket } from '../context/SocketContext';
 
 export const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isVoiceHudOpen, closeVoiceHud, activeConversationId, sendChatMessage } = useSocket();
 
   return (
     <div className="min-h-screen bg-jarvis-bg text-slate-100 flex flex-col font-sans">
@@ -15,6 +18,16 @@ export const MainLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Global Fullscreen Stark Arc Core Jarvis Voice HUD */}
+      <AmbientVoiceModal
+        conversationId={activeConversationId}
+        isOpen={isVoiceHudOpen}
+        onClose={closeVoiceHud}
+        onSendMessage={(text, voiceReply) => {
+          sendChatMessage(activeConversationId, text, voiceReply ?? true);
+        }}
+      />
     </div>
   );
 };

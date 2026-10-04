@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import uuid
+import re
 from datetime import datetime, date
 from typing import Dict, Any
 from app.realtime.socket_manager import socket_manager, sio
@@ -28,6 +29,64 @@ async def safe_emit(event: str, data: Any = None, room: str = None):
     """Safely emit an event over Socket.IO with guaranteed JSON serialization."""
     serialized = serialize_for_socket(data) if data is not None else None
     await sio.emit(event, serialized, room=room)
+
+def clean_text_for_jarvis_speech(raw_text: str) -> str:
+    """
+    Transforms markdown AI responses into crisp, elegant spoken dialogue for Jarvis.
+    Strips raw markdown syntax, code fences, URLs, emojis, and metadata timestamps.
+    Ensures natural conversational pacing and polite British address ('Yes boss').
+    """
+    if not raw_text:
+        return ""
+
+    # Replace code blocks with spoken summary
+    text = re.sub(r'```[\s\S]*?```', 'Here is the relevant code on your screen, boss.', raw_text)
+    text = re.sub(r'`[^`]*`', '', text)
+
+    # Strip markdown headers, bold, italics, strikethrough, blockquotes
+    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[*_~]{1,3}', '', text)
+    text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)
+
+    # Strip markdown links [text](url) -> text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    # Strip raw URLs
+    text = re.sub(r'https?://\S+', '', text)
+
+    # Strip metadata parentheticals like *(Based on the latest system datetime lookup.)* or (Europe/London)
+    text = re.sub(r'\([^\)]*(?:lookup|time zone|UTC|source|datetime)[^\)]*\)', '', text, flags=re.IGNORECASE)
+
+    # Remove markdown bullets (- , * , 1. , 2. )
+    text = re.sub(r'^\s*[-*•]\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+\.\s*', '', text, flags=re.MULTILINE)
+
+    # Remove emojis and symbols that TTS stumbles on
+    text = re.sub(r'[^\w\s.,!?:;\'"%-]', ' ', text)
+
+    # Collapse multiple spaces and linebreaks
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    # Extract clean conversational sentences (up to 3 concise sentences, max ~280 chars)
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    spoken_chunks = []
+    current_len = 0
+    for s in sentences:
+        s_clean = s.strip()
+        if not s_clean:
+            continue
+        spoken_chunks.append(s_clean)
+        current_len += len(s_clean)
+        if current_len >= 260:
+            break
+
+    spoken = " ".join(spoken_chunks) if spoken_chunks else text[:260]
+
+    # Ensure authentic J.A.R.V.I.S. address ("Yes boss, ...") if not already present
+    lower_spoken = spoken.lower()
+    if not any(k in lower_spoken for k in ["boss", "sir"]) and len(spoken) > 3:
+        spoken = f"Yes boss, {spoken}"
+
+    return spoken
 
 
 def register_socket_events():
@@ -121,12 +180,14 @@ def register_socket_events():
                 # If voice mode enabled and text was generated, trigger TTS
                 if voice_mode and accumulated_response.strip():
                     try:
-                        await safe_emit("tts:start", {"conversation_id": conv_id}, room=sid)
-                        tts = get_tts_provider()
-                        audio_bytes = await tts.synthesize(accumulated_response[:600])
-                        b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-                        await safe_emit("tts:audio", {"audio": b64_audio, "format": "mp3"}, room=sid)
-                        await safe_emit("tts:end", {"conversation_id": conv_id}, room=sid)
+                        spoken_dialogue = clean_text_for_jarvis_speech(accumulated_response)
+                        if spoken_dialogue:
+                            await safe_emit("tts:start", {"conversation_id": conv_id}, room=sid)
+                            tts = get_tts_provider()
+                            audio_bytes = await tts.synthesize(spoken_dialogue)
+                            b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+                            await safe_emit("tts:audio", {"audio": b64_audio, "format": "mp3"}, room=sid)
+                            await safe_emit("tts:end", {"conversation_id": conv_id}, room=sid)
                     except Exception as tts_err:
                         logger.warning(f"TTS synthesis error: {tts_err}")
                         await safe_emit("tts:end", {"error": str(tts_err)}, room=sid)

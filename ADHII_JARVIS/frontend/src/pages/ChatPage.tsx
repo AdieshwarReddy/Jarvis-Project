@@ -12,6 +12,7 @@ import {
   Bot,
   Zap,
   Radio,
+  Flame,
 } from 'lucide-react';
 import { conversationsApi } from '../api/client';
 import { useSocket } from '../context/SocketContext';
@@ -38,7 +39,6 @@ export const ChatPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [showAmbientMode, setShowAmbientMode] = useState(false);
   const [autoVoice, setAutoVoice] = useState<boolean>(() => localStorage.getItem('jarvis_autovoice') !== 'false');
   const [starkTheme, setStarkTheme] = useState<'gold' | 'cyan'>(() => (localStorage.getItem('jarvis_theme') as 'gold' | 'cyan') || 'gold');
 
@@ -62,6 +62,9 @@ export const ChatPage: React.FC = () => {
     pendingToolActivity,
     confirmTool,
     lastCompletedMessage,
+    openVoiceHud,
+    closeVoiceHud,
+    setActiveConversationId,
   } = useSocket();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -74,7 +77,7 @@ export const ChatPage: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowAmbientMode(false);
+        closeVoiceHud();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -112,9 +115,11 @@ export const ChatPage: React.FC = () => {
       setConversation(data);
       setMessages(data.messages || []);
       setNewTitle(data.title || 'Conversation');
+      setActiveConversationId(data.id);
     } catch (err) {
       console.error('Failed to load conversation:', err);
       setConversation({ id: convId, title: 'Active Conversation', messages: [] });
+      setActiveConversationId(convId);
     } finally {
       setLoading(false);
     }
@@ -258,18 +263,18 @@ export const ChatPage: React.FC = () => {
             <span className="hidden sm:inline">{starkTheme === 'gold' ? '🟡 Stark Gold' : '🔷 Cyan'}</span>
           </button>
 
-          {/* Ambient Voice HUD button */}
+          {/* Fullscreen Jarvis HUD button */}
           <button
-            onClick={() => setShowAmbientMode(true)}
+            onClick={openVoiceHud}
             className={`p-2 px-3 rounded-xl border transition text-xs font-semibold flex items-center gap-1.5 shadow-lg group ${
               starkTheme === 'gold'
-                ? 'bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 text-yellow-300 border-yellow-400/50 shadow-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30'
+                ? 'bg-gradient-to-r from-amber-500/25 via-yellow-500/25 to-amber-600/25 text-yellow-300 border-yellow-400/60 shadow-amber-500/20 hover:from-amber-500/35 hover:to-yellow-500/35'
                 : 'bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 text-cyan-300 border-cyan-400/30 shadow-cyan-500/10 hover:from-cyan-500/30 hover:to-purple-500/30'
             }`}
-            title="Open Jarvis Fullscreen Voice HUD"
+            title="Activate Fullscreen Stark Arc Core Jarvis"
           >
-            <Radio className={`h-3.5 w-3.5 animate-pulse group-hover:scale-110 transition-transform ${starkTheme === 'gold' ? 'text-yellow-400' : 'text-cyan-400'}`} />
-            <span className="hidden sm:inline">Voice HUD</span>
+            <Flame className={`h-3.5 w-3.5 fill-current group-hover:scale-110 transition-transform ${starkTheme === 'gold' ? 'text-yellow-400' : 'text-cyan-400'}`} />
+            <span className="hidden sm:inline font-mono uppercase tracking-wider font-bold">⚡ FULLSCREEN JARVIS</span>
           </button>
 
           {messages.length > 0 && !isStreaming && (
@@ -389,17 +394,7 @@ export const ChatPage: React.FC = () => {
         autoVoice={autoVoice}
         onToggleAutoVoice={toggleAutoVoice}
         starkTheme={starkTheme}
-        onOpenVoiceHud={() => setShowAmbientMode(true)}
-      />
-
-      {/* Ambient Voice HUD Modal */}
-      <AmbientVoiceModal
-        conversationId={conversation?.id}
-        isOpen={showAmbientMode}
-        onClose={() => setShowAmbientMode(false)}
-        onSendMessage={(text, voiceReply) => {
-          handleSendMessage(text, voiceReply ?? true);
-        }}
+        onOpenVoiceHud={openVoiceHud}
       />
     </div>
   );

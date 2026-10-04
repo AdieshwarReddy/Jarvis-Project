@@ -64,6 +64,14 @@ export const AmbientVoiceModal: React.FC<Props> = ({
     }
   }, [lastCompletedMessage]);
 
+  useEffect(() => {
+    if (isOpen) {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+      }
+    }
+  }, [isOpen]);
+
   const { isRecording, startRecording, stopRecording, interimTranscript } =
     useVoiceRecognition(conversationId);
 
@@ -397,8 +405,8 @@ export const AmbientVoiceModal: React.FC<Props> = ({
               Synthesizing response...
             </p>
           ) : !interimTranscript && !voiceTranscript ? (
-            <p className="text-xs text-slate-400 font-mono italic">
-              Speak naturally, or tap one of the tactical commands below...
+            <p className={`text-xs font-mono italic ${starkTheme === 'gold' ? 'text-yellow-300/80' : 'text-cyan-300/80'}`}>
+              "Yes boss, all systems fully operational. Tap the core to speak..."
             </p>
           ) : null}
         </div>
@@ -408,10 +416,10 @@ export const AmbientVoiceModal: React.FC<Props> = ({
       <div className="relative z-10 w-full max-w-4xl mx-auto px-6 pb-6">
         <div className="flex items-center justify-center gap-2 overflow-x-auto py-2">
           {[
-            'What is 18% of 42,000?',
-            'Create a task: Interview Prep for tomorrow',
-            'Create a note: Jarvis Architecture Highlights',
+            'Yes boss, status report',
             'What time is it in London right now?',
+            'What is 18% of 42,000?',
+            'Create a task: Interview Prep tomorrow',
             'Who are you and what can you do?',
           ].map((prompt, i) => (
             <button
