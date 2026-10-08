@@ -75,6 +75,17 @@ fastapi_app.include_router(voice_router)
 fastapi_app.include_router(desktop_router)
 fastapi_app.include_router(spotify_router)
 
+@fastapi_app.get("/", tags=["Root"])
+async def root():
+    """Root welcome endpoint."""
+    return {
+        "message": "Adhii Jarvis — Personal AI Workspace Backend is online!",
+        "status": "healthy",
+        "version": settings.VERSION,
+        "docs_url": "/docs",
+        "health_check": "/api/health"
+    }
+
 @fastapi_app.get("/api/health", tags=["Health"])
 async def health_check():
     """System health check endpoint."""
