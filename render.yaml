@@ -1,10 +1,13 @@
 services:
+  # =================================================================
+  # 1. FastAPI Python Backend with WebSockets
+  # =================================================================
   - type: web
     name: adhii-jarvis-backend
     env: python
     region: oregon
     plan: free
-    rootDir: backend
+    rootDir: ADHII_JARVIS/backend
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
