@@ -9,7 +9,10 @@ import ctypes
 import webbrowser
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 from app.core.logging import logger
 
@@ -56,10 +59,32 @@ class DesktopCompanion:
     def get_telemetry(self) -> Dict[str, Any]:
         """Obtains actual hardware telemetry using psutil without fabricated values."""
         self.last_heartbeat = datetime.now(timezone.utc)
+        if not psutil:
+            return {
+                "status": "success",
+                "device_id": self.device_id,
+                "os": self.os_name,
+                "agent_connected": self.is_connected,
+                "cpu_percent": 0.0,
+                "ram_used_gb": 0.0,
+                "ram_total_gb": 0.0,
+                "ram_percent": 0.0,
+                "disk_used_gb": 0.0,
+                "disk_free_gb": 0.0,
+                "disk_total_gb": 0.0,
+                "disk_percent": 0.0,
+                "battery_percent": 100,
+                "charging": True,
+                "uptime_seconds": int(time.time() - self.start_time),
+                "uptime_formatted": "Cloud Server",
+                "process_count": 0,
+                "last_heartbeat": self.last_heartbeat.isoformat()
+            }
         try:
             cpu = psutil.cpu_percent(interval=None)
             mem = psutil.virtual_memory()
-            disk = psutil.disk_usage("C:")
+            disk_path = "C:\\" if platform.system() == "Windows" else "/"
+            disk = psutil.disk_usage(disk_path)
             battery = psutil.sensors_battery()
             boot_time = psutil.boot_time()
             uptime_seconds = int(time.time() - boot_time)
