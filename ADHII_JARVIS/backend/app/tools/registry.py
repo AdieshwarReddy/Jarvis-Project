@@ -228,5 +228,21 @@ class ToolRegistry:
             requires_confirmation=False
         ))
 
+        # 12. Spotify Play Tool (Immediate execution with desktop fallback)
+        from app.services.spotify_service import spotify_service
+        self.register(ToolDefinition(
+            name="spotify_play",
+            description="Play music or search tracks on Spotify with desktop application fallback.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Song title or artist to play on Spotify"}
+                },
+                "required": ["query"]
+            },
+            handler=lambda query: spotify_service.play(query),
+            requires_confirmation=False
+        ))
+
 # Global tool registry
 tool_registry = ToolRegistry()

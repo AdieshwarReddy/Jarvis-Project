@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  Radio,
   LayoutDashboard,
   MessageSquare,
   History,
@@ -22,8 +23,9 @@ interface Props {
 
 export const Sidebar: React.FC<Props> = ({ isOpen, onClose }) => {
   const navItems = [
+    { to: '/command-center', label: 'Command Center', icon: Radio, highlight: true },
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/chat', label: 'AI Workspace Chat', icon: MessageSquare, highlight: true },
+    { to: '/chat', label: 'AI Workspace Chat', icon: MessageSquare },
     { to: '/history', label: 'Conversations', icon: History },
     { to: '/documents', label: 'Documents & RAG', icon: FileText },
     { to: '/notes', label: 'Saved Notes', icon: StickyNote },

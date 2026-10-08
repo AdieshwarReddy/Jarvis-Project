@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, Menu, X, User, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { AssistantStateIndicator } from './AssistantStateIndicator';
 import { NotificationBell } from './NotificationBell';
+import { jarvisSound } from '../utils/jarvisSoundSystem';
 
 interface Props {
   onToggleSidebar: () => void;
@@ -13,7 +14,13 @@ interface Props {
 
 export const Navbar: React.FC<Props> = ({ onToggleSidebar, sidebarOpen }) => {
   const { user, profile } = useAuth();
-  const { assistantState, openVoiceHud } = useSocket();
+  const { assistantState } = useSocket();
+  const navigate = useNavigate();
+
+  const handleActivateJarvis = () => {
+    jarvisSound.playWakeup();
+    navigate('/command-center');
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-cyan-500/10 bg-jarvis-bg/80 backdrop-blur-xl">
@@ -46,13 +53,21 @@ export const Navbar: React.FC<Props> = ({ onToggleSidebar, sidebarOpen }) => {
           </Link>
         </div>
 
-        {/* Center: Live Assistant State Indicator & Fullscreen Jarvis Trigger */}
+        {/* Center: Live Assistant State Indicator & Command Center Trigger */}
         <div className="hidden md:flex items-center gap-3">
           <AssistantStateIndicator state={assistantState} size="md" />
+          <Link
+            to="/command-center"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-mono text-xs font-bold shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:bg-cyan-900 transition"
+            title="Launch Full Command Center HUD"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-cyan-300 animate-pulse" />
+            <span>COMMAND CENTER</span>
+          </Link>
           <button
-            onClick={openVoiceHud}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/25 transition-all duration-200 active:scale-95 border border-yellow-300 group"
-            title="Spread Fullscreen Stark Arc Core Jarvis"
+            onClick={handleActivateJarvis}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/25 transition-all duration-200 active:scale-95 border border-yellow-300 group cursor-pointer"
+            title="Launch Fullscreen Jarvis Command Center HUD"
           >
             <Flame className="h-4 w-4 fill-current text-slate-950 group-hover:scale-110 transition-transform" />
             <span className="tracking-wider uppercase font-mono">⚡ ACTIVATE JARVIS</span>
@@ -62,9 +77,9 @@ export const Navbar: React.FC<Props> = ({ onToggleSidebar, sidebarOpen }) => {
         {/* Right: Notification bell & User Profile */}
         <div className="flex items-center gap-3">
           <button
-            onClick={openVoiceHud}
-            className="md:hidden p-2 rounded-xl bg-amber-500 text-slate-950 font-bold border border-yellow-300 shadow-md shadow-amber-500/30"
-            title="Activate Fullscreen Jarvis"
+            onClick={handleActivateJarvis}
+            className="md:hidden p-2 rounded-xl bg-amber-500 text-slate-950 font-bold border border-yellow-300 shadow-md shadow-amber-500/30 cursor-pointer"
+            title="Activate Jarvis Command Center"
           >
             <Flame className="h-4 w-4 fill-current" />
           </button>

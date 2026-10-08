@@ -3,7 +3,7 @@ import base64
 import uuid
 import re
 from datetime import datetime, date
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.realtime.socket_manager import socket_manager, sio
 from app.core.security import verify_supabase_token, DEMO_USER
 from app.core.logging import logger
@@ -263,6 +263,8 @@ def register_socket_events():
                 "message": transcript,
                 "voice_response": True
             })
+        else:
+            await safe_emit("assistant:stopped", {"conversation_id": (data or {}).get("conversation_id")}, room=sid)
 
     @sio.on("tool:confirm")
     async def on_tool_confirm(sid, data):
@@ -318,6 +320,71 @@ def register_socket_events():
                     "message_id": msg["id"],
                     "content": cancel_text
                 }, room=sid)
+
+    # -----------------------------------------------------------------
+    # Desktop Companion Commands & Telemetry
+    # -----------------------------------------------------------------
+    @sio.on("desktop:command")
+    async def handle_desktop_command(sid: str, data: Dict[str, Any]):
+        user = await socket_manager.get_user_from_sid(sid)
+        from app.companion.desktop_agent import desktop_companion
+        confirmed = data.get("confirmed", False)
+        result = desktop_companion.execute_command(data, confirmed=confirmed)
+        if result.get("status") == "confirmation_required":
+            await safe_emit("tool:confirmation_required", result, room=sid)
+        else:
+            await safe_emit("desktop:result", result, room=sid)
+            # If successful and voice requested, speak output
+            if result.get("status") == "success" and result.get("message"):
+                try:
+                    tts = get_tts_provider()
+                    audio_bytes = await tts.synthesize(result["message"])
+                    b64 = base64.b64encode(audio_bytes).decode("utf-8")
+                    await safe_emit("tts:audio", {"audio": b64, "format": "mp3"}, room=sid)
+                except Exception:
+                    pass
+
+    @sio.on("telemetry:request")
+    async def handle_telemetry_request(sid: str, data: Optional[Dict[str, Any]] = None):
+        from app.companion.desktop_agent import desktop_companion
+        tel = desktop_companion.get_telemetry()
+        await safe_emit("telemetry:update", tel, room=sid)
+
+    # -----------------------------------------------------------------
+    # Spotify Playback Events
+    # -----------------------------------------------------------------
+    @sio.on("spotify:play")
+    async def handle_spotify_play(sid: str, data: Optional[Dict[str, Any]] = None):
+        from app.services.spotify_service import spotify_service
+        query_or_uri = (data or {}).get("query") or (data or {}).get("uri")
+        res = await spotify_service.play(query_or_uri)
+        await safe_emit("spotify:status", res, room=sid)
+        state = await spotify_service.get_state()
+        await safe_emit("spotify:track", state, room=sid)
+
+    @sio.on("spotify:pause")
+    async def handle_spotify_pause(sid: str, data: Optional[Dict[str, Any]] = None):
+        from app.services.spotify_service import spotify_service
+        res = await spotify_service.pause()
+        await safe_emit("spotify:status", res, room=sid)
+        state = await spotify_service.get_state()
+        await safe_emit("spotify:track", state, room=sid)
+
+    @sio.on("spotify:next")
+    async def handle_spotify_next(sid: str, data: Optional[Dict[str, Any]] = None):
+        from app.services.spotify_service import spotify_service
+        res = await spotify_service.next()
+        await safe_emit("spotify:status", res, room=sid)
+        state = await spotify_service.get_state()
+        await safe_emit("spotify:track", state, room=sid)
+
+    @sio.on("spotify:previous")
+    async def handle_spotify_previous(sid: str, data: Optional[Dict[str, Any]] = None):
+        from app.services.spotify_service import spotify_service
+        res = await spotify_service.previous()
+        await safe_emit("spotify:status", res, room=sid)
+        state = await spotify_service.get_state()
+        await safe_emit("spotify:track", state, room=sid)
 
 # Register handlers immediately
 register_socket_events()

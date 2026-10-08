@@ -105,10 +105,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     s.on('assistant:complete', (data: CompletedMessage) => {
       setIsStreaming(false);
-      setAssistantState('IDLE');
       if (data && data.content) {
         setLastCompletedMessage(data);
       }
+      // If audio is not playing (e.g. text-only mode), signal completion after short delay
+      setTimeout(() => {
+        if (!audioRef.current || audioRef.current.paused) {
+          setAssistantState('IDLE');
+          window.dispatchEvent(new CustomEvent('jarvis:speech-ended'));
+        }
+      }, 1000);
     });
 
     s.on('assistant:stopped', () => {
@@ -165,16 +171,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           audioRef.current = new Audio(audioSrc);
           audioRef.current.onended = () => {
             setAssistantState('IDLE');
+            window.dispatchEvent(new CustomEvent('jarvis:speech-ended'));
           };
           audioRef.current.onerror = () => {
             setAssistantState('IDLE');
+            window.dispatchEvent(new CustomEvent('jarvis:speech-ended'));
           };
           audioRef.current.play().catch((err) => {
             console.warn('Audio auto-play policy restricted:', err);
             setAssistantState('IDLE');
+            window.dispatchEvent(new CustomEvent('jarvis:speech-ended'));
           });
         } catch (e) {
           console.error('Audio playback error:', e);
+          window.dispatchEvent(new CustomEvent('jarvis:speech-ended'));
         }
       }
     });

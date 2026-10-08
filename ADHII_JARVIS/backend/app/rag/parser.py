@@ -1,9 +1,41 @@
 import os
+import io
+import asyncio
+import concurrent.futures
 from typing import Optional
 import pypdf
 import docx
 from app.core.exceptions import FileSecurityError, ValidationError
 from app.core.logging import logger
+
+def _extract_ocr_from_scanned_pdf(file_path: str) -> str:
+    """Run Windows native OCR on pages of scanned PDFs without selectable text."""
+    try:
+        import winocr
+        from PIL import Image
+
+        async def _ocr_all():
+            reader = pypdf.PdfReader(file_path)
+            extracted_pages = []
+            for i, page in enumerate(reader.pages):
+                page_texts = []
+                for img in page.images:
+                    try:
+                        pil_img = Image.open(io.BytesIO(img.data))
+                        res = await winocr.recognize_pil(pil_img, 'en')
+                        if res.text and res.text.strip():
+                            page_texts.append(res.text.strip())
+                    except Exception as img_err:
+                        logger.warning(f"Error OCRing image on page {i}: {img_err}")
+                if page_texts:
+                    extracted_pages.append(f"[Page {i+1} - Scanned OCR]\n" + "\n".join(page_texts))
+            return "\n\n".join(extracted_pages)
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(lambda: asyncio.run(_ocr_all())).result()
+    except Exception as e:
+        logger.warning(f"Native OCR fallback failed: {e}")
+        return ""
 
 def parse_file(file_path: str, filename: str) -> str:
     """Extract clean text content from PDF, DOCX, TXT, or MD documents."""
@@ -20,7 +52,11 @@ def parse_file(file_path: str, filename: str) -> str:
                 text = page.extract_text()
                 if text:
                     pages.append(f"[Page {i+1}]\n{text}")
-            return "\n\n".join(pages)
+            extracted = "\n\n".join(pages).strip()
+            if not extracted:
+                logger.info(f"PDF {filename} has no embedded text layer. Running Windows OCR...")
+                extracted = _extract_ocr_from_scanned_pdf(file_path)
+            return extracted
         except Exception as e:
             logger.error(f"PDF extraction error: {e}")
             raise ValidationError(f"Failed to extract text from PDF: {str(e)}")

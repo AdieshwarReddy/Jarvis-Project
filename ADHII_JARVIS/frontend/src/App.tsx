@@ -19,6 +19,7 @@ import { ToolActivityPage } from './pages/ToolActivityPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { JarvisCommandCenter } from './components/command-center/JarvisCommandCenter';
 
 export const App: React.FC = () => {
   return (
@@ -27,11 +28,13 @@ export const App: React.FC = () => {
         <SocketProvider>
           <Routes>
             {/* Public Landing & Auth */}
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
             {/* Authenticated Workspace App Routes */}
+            <Route path="/command-center" element={<JarvisCommandCenter />} />
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/chat" element={<ChatPage />} />

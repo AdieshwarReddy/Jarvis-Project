@@ -160,11 +160,19 @@ class ToolRouter:
         # -------------------------------------------------------------
         # 9. OPEN APPLICATION TOOL (Immediate execution)
         # -------------------------------------------------------------
-        # e.g., "open vs code", "open whatsapp", "open chrome", "launch notepad", "start calculator"
-        app_match = re.search(r'^(?:please\s+|can you\s+|could you\s+)?(?:open|launch|start|run)(?:\s+up)?\s+(?:the\s+)?([a-zA-Z0-9_\-\.\s]+?)(?:\s+app|\s+application)?(?:\s+please)?$', text, re.I)
+        # Cleaned prompt for command identification
+        cleaned = re.sub(r'^[^\w]+|[^\w]+$', '', lower).strip()
+        for pfx in ["hey jarvis", "ok jarvis", "jarvis", "please", "could you", "can you", "i want you to"]:
+            if cleaned.startswith(pfx):
+                cleaned = cleaned[len(pfx):].strip(" ,:.-")
+
+        app_match = re.search(
+            r'^(?:please\s+)?(?:open(?:\s+up)?|launch|start|run|go\s+to|bring\s+up)\s+(?:the\s+)?([a-zA-Z0-9_\-\.\s]+?)(?:\s+for\s+me|\s+app|\s+application|\s+website|\s+page|\s+please)*$',
+            cleaned,
+            re.I
+        )
         if app_match:
-            raw_target = app_match.group(1).strip()
-            # Exclude other tools keywords
+            raw_target = app_match.group(1).strip(" .?!,;:'\"")
             if not any(kw in raw_target.lower() for kw in ["note", "task", "reminder", "document", "chat", "conversation"]):
                 return {
                     "tool_name": "open_app",
@@ -172,6 +180,37 @@ class ToolRouter:
                     "summary": f"Launch {raw_target}",
                     "requires_confirmation": False
                 }
+
+        # Direct app name request (e.g. user just said "youtube", "whatsapp", "vs code", "lock pc")
+        from app.tools.app_launcher import KNOWN_APPS
+        direct_target = cleaned.strip(" .?!,;:'\"")
+        if direct_target in KNOWN_APPS or any(act in direct_target for act in ["lock pc", "lock computer", "mute audio"]):
+            return {
+                "tool_name": "open_app",
+                "parameters": {"app_name": direct_target},
+                "summary": f"Launch {direct_target}",
+                "requires_confirmation": False
+            }
+
+        # -------------------------------------------------------------
+        # 10. SPOTIFY PLAYBACK TOOL (Immediate execution)
+        # -------------------------------------------------------------
+        # e.g., "play Starboy on Spotify", "play Blinding Lights", "listen to Bohemian Rhapsody"
+        if "play " in cleaned or "spotify" in cleaned or "listen to " in cleaned:
+            spotify_match = re.search(
+                r'^(?:please\s+)?(?:play|listen\s+to)\s+(.+?)(?:\s+on\s+spotify|\s+in\s+spotify)?$',
+                cleaned,
+                re.I
+            )
+            if spotify_match:
+                song = spotify_match.group(1).replace("on spotify", "").replace("in spotify", "").strip(" .?!,;:'\"")
+                if song and not any(kw in song.lower() for kw in ["game", "video", "youtube", "task", "note"]):
+                    return {
+                        "tool_name": "spotify_play",
+                        "parameters": {"query": song},
+                        "summary": f"Play '{song}' on Spotify",
+                        "requires_confirmation": False
+                    }
 
         return None
 

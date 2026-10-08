@@ -7,10 +7,10 @@ from app.core.exceptions import ProviderError
 
 class EdgeTTSProvider(BaseTTSProvider):
     """
-    High-fidelity neural text-to-speech using Edge-TTS.
-    Operates without paid API keys, providing fast, clear speech audio.
+    High-fidelity neural text-to-speech calibrated to British actor Paul Bettany's
+    iconic J.A.R.V.I.S. voice in the Marvel Cinematic Universe.
     """
-    DEFAULT_VOICE = "en-GB-RyanNeural"
+    DEFAULT_VOICE = "en-GB-RyanNeural"  # Authentic British RP male voice
 
     def __init__(self, voice: Optional[str] = None):
         super().__init__(api_key=None)
@@ -19,7 +19,8 @@ class EdgeTTSProvider(BaseTTSProvider):
     async def synthesize(self, text: str, voice: Optional[str] = None) -> bytes:
         selected_voice = voice or self.default_voice
         try:
-            communicate = edge_tts.Communicate(text, selected_voice, pitch="-2Hz", rate="+1%")
+            # Calibrated specifically for Paul Bettany's calm, measured, baritone British RP delivery
+            communicate = edge_tts.Communicate(text, selected_voice, pitch="-4Hz", rate="-3%")
             buffer = io.BytesIO()
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":

@@ -20,6 +20,8 @@ from app.api.reminders import router as reminders_router
 from app.api.tools import router as tools_router
 from app.api.settings import router as settings_router
 from app.api.voice import router as voice_router
+from app.api.desktop import router as desktop_router
+from app.api.spotify import router as spotify_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,6 +72,8 @@ fastapi_app.include_router(reminders_router)
 fastapi_app.include_router(tools_router)
 fastapi_app.include_router(settings_router)
 fastapi_app.include_router(voice_router)
+fastapi_app.include_router(desktop_router)
+fastapi_app.include_router(spotify_router)
 
 @fastapi_app.get("/api/health", tags=["Health"])
 async def health_check():
@@ -85,6 +89,19 @@ async def health_check():
         "tts_provider": settings.TTS_PROVIDER,
         "scheduler": "running" if reminder_scheduler.is_running else "stopped"
     }
+
+from app.tools.app_launcher import get_system_telemetry, execute_open_app
+
+@fastapi_app.get("/api/system/stats", tags=["System"])
+async def system_stats():
+    """Live hardware & system telemetry for Stark HUD."""
+    return get_system_telemetry()
+
+@fastapi_app.post("/api/system/launch", tags=["System"])
+async def launch_app_endpoint(data: dict):
+    """Launch local desktop application or URL from HUD."""
+    app_name = data.get("app_name", "")
+    return execute_open_app(app_name)
 
 # Wrap FastAPI with python-socketio ASGI App
 app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)

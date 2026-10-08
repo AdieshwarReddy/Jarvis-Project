@@ -1,5 +1,9 @@
+import sys
 import httpx
 import json
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 BASE_URL = "http://127.0.0.1:8000"
 HEADERS = {"Authorization": "Bearer demo-token"}

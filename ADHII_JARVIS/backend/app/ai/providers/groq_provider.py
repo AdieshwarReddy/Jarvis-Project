@@ -97,11 +97,13 @@ class GroqProvider(BaseLLMProvider):
                                 break
                             try:
                                 chunk = json.loads(data_str)
-                                delta = chunk["choices"][0].get("delta", {})
-                                content = delta.get("content")
-                                if content:
-                                    yield content
-                            except json.JSONDecodeError:
+                                choices = chunk.get("choices")
+                                if choices and len(choices) > 0:
+                                    delta = choices[0].get("delta", {})
+                                    content = delta.get("content")
+                                    if content:
+                                        yield content
+                            except (json.JSONDecodeError, KeyError, IndexError, TypeError):
                                 continue
                         return
             except httpx.RequestError as e:

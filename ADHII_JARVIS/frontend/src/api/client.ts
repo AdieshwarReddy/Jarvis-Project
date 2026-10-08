@@ -137,3 +137,77 @@ export const settingsApi = {
   getNotifications: () => fetchApi('/api/notifications'),
   markNotificationsRead: () => fetchApi('/api/notifications/read', { method: 'POST' }),
 };
+
+export const systemApi = {
+  getStats: () => fetchApi('/api/system/stats'),
+  launchApp: (appName: string) =>
+    fetchApi('/api/system/launch', {
+      method: 'POST',
+      body: JSON.stringify({ app_name: appName }),
+    }),
+};
+
+export const desktopApi = {
+  getStatus: () => fetchApi<{
+    status: string;
+    device_id: string;
+    os: string;
+    agent_connected: boolean;
+    last_heartbeat: string;
+  }>('/api/desktop/status'),
+  getTelemetry: () => fetchApi<{
+    status: string;
+    device_id: string;
+    os: string;
+    agent_connected: boolean;
+    cpu_percent: number;
+    ram_used_gb: number;
+    ram_total_gb: number;
+    ram_percent: number;
+    disk_used_gb: number;
+    disk_free_gb: number;
+    disk_total_gb: number;
+    disk_percent: number;
+    battery_percent: number;
+    charging: boolean;
+    uptime_seconds: number;
+    uptime_formatted: string;
+    process_count?: number;
+    last_heartbeat: string;
+  }>('/api/desktop/telemetry'),
+  sendCommand: (command: {
+    command_id?: string;
+    tool: string;
+    action: string;
+    parameters?: any;
+    confirmed?: boolean;
+  }) => fetchApi('/api/desktop/command', { method: 'POST', body: JSON.stringify(command) }),
+};
+
+export const spotifyApi = {
+  getStatus: () => fetchApi<{
+    connected: boolean;
+    configured: boolean;
+    client_id_available: boolean;
+  }>('/api/spotify/status'),
+  search: (q: string) => fetchApi<{ query: string; tracks: any[] }>(`/api/spotify/search?q=${encodeURIComponent(q)}`),
+  play: (queryOrUri?: string, deviceId?: string) =>
+    fetchApi('/api/spotify/play', { method: 'POST', body: JSON.stringify({ query: queryOrUri, device_id: deviceId }) }),
+  pause: () => fetchApi('/api/spotify/pause', { method: 'POST' }),
+  next: () => fetchApi('/api/spotify/next', { method: 'POST' }),
+  previous: () => fetchApi('/api/spotify/previous', { method: 'POST' }),
+  getState: () => fetchApi<{
+    connected: boolean;
+    playing: boolean;
+    track?: string;
+    artist?: string;
+    album?: string;
+    album_art?: string;
+    progress_ms?: number;
+    duration_ms?: number;
+    device?: string;
+  }>('/api/spotify/state'),
+  setToken: (accessToken: string) =>
+    fetchApi('/api/spotify/token', { method: 'POST', body: JSON.stringify({ access_token: accessToken }) }),
+};
+

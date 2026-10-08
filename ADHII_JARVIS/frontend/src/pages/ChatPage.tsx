@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   PlusCircle,
@@ -19,7 +19,7 @@ import { useSocket } from '../context/SocketContext';
 import { ChatMessage } from '../components/ChatMessage';
 import { ChatInput } from '../components/ChatInput';
 import { ToolConfirmationCard } from '../components/ToolConfirmationCard';
-import { AmbientVoiceModal } from '../components/AmbientVoiceModal';
+import { jarvisSound } from '../utils/jarvisSoundSystem';
 
 interface Message {
   id: string;
@@ -32,6 +32,7 @@ interface Message {
 
 export const ChatPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const activeConvId = searchParams.get('id') || '';
 
   const [conversation, setConversation] = useState<any>(null);
@@ -265,13 +266,16 @@ export const ChatPage: React.FC = () => {
 
           {/* Fullscreen Jarvis HUD button */}
           <button
-            onClick={openVoiceHud}
-            className={`p-2 px-3 rounded-xl border transition text-xs font-semibold flex items-center gap-1.5 shadow-lg group ${
+            onClick={() => {
+              jarvisSound.playWakeup();
+              navigate('/command-center');
+            }}
+            className={`p-2 px-3 rounded-xl border transition text-xs font-semibold flex items-center gap-1.5 shadow-lg group cursor-pointer ${
               starkTheme === 'gold'
                 ? 'bg-gradient-to-r from-amber-500/25 via-yellow-500/25 to-amber-600/25 text-yellow-300 border-yellow-400/60 shadow-amber-500/20 hover:from-amber-500/35 hover:to-yellow-500/35'
                 : 'bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 text-cyan-300 border-cyan-400/30 shadow-cyan-500/10 hover:from-cyan-500/30 hover:to-purple-500/30'
             }`}
-            title="Activate Fullscreen Stark Arc Core Jarvis"
+            title="Activate Fullscreen Jarvis Command Center HUD"
           >
             <Flame className={`h-3.5 w-3.5 fill-current group-hover:scale-110 transition-transform ${starkTheme === 'gold' ? 'text-yellow-400' : 'text-cyan-400'}`} />
             <span className="hidden sm:inline font-mono uppercase tracking-wider font-bold">⚡ FULLSCREEN JARVIS</span>
